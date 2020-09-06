@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
 const isWebpackDevServer = process.argv.some(a => path.basename(a) === 'webpack-dev-server');
@@ -6,13 +7,13 @@ const isWatch = process.argv.some(a => a === '--watch');
 
 const plugins =
   isWebpackDevServer || !isWatch ? [] : [
-    function(){
-      this.plugin('done', function(stats){
-        process.stderr.write(stats.toString('errors-only'));
-      });
-    }
+    // function(){
+    //   this.plugin('done', function(stats){
+    //     process.stderr.write(stats.toString('errors-only'));
+    //   });
+    // }
   ]
-;
+  ;
 
 module.exports = {
   devtool: 'eval-source-map',
@@ -32,22 +33,22 @@ module.exports = {
 
   module: {
     rules: [
-      {
-        test: /\.purs$/,
-        use: [
-          {
-            loader: 'purs-loader',
-            options: {
-              src: [
-                'src/**/*.purs'
-              ],
-              spago: true,
-              watch: isWebpackDevServer || isWatch,
-              pscIde: true
-            }
-          }
-        ]
-      },
+      // {
+      //   test: /\.purs$/,
+      //   use: [
+      //     {
+      //       loader: 'purs-loader',
+      //       options: {
+      //         src: [
+      //           'src/**/*.purs'
+      //         ],
+      //         spago: true,
+      //         watch: isWebpackDevServer || isWatch,
+      //         pscIde: true
+      //       }
+      //     }
+      //   ]
+      // },
       {
         test: /\.(png|jpg|gif)$/i,
         use: [
@@ -63,8 +64,8 @@ module.exports = {
   },
 
   resolve: {
-    modules: [ 'node_modules' ],
-    extensions: [ '.purs', '.js']
+    modules: ['node_modules'],
+    extensions: ['.purs', '.js']
   },
 
   plugins: [
@@ -75,6 +76,11 @@ module.exports = {
       title: 'purescript-webpack-example',
       template: 'index.html',
       inject: false  // See stackoverflow.com/a/38292765/3067181
+    }),
+    new CopyPlugin({
+      patterns: [
+        { from: "resources", to: "resources" }
+      ]
     })
   ].concat(plugins)
 };

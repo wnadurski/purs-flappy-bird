@@ -5,12 +5,15 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --open",
+    "watch-purs": "spago build --watch",
+    "watch-js": "webpack-dev-server --open",
+    "start": "npm run watch-purs & npm run watch-js",
     "build": "spago build && webpack"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "copy-webpack-plugin": "^6.0.4",
     "html-webpack-plugin": "^4.3.0",
     "purescript": "^0.13.8",
     "purescript-psa": "^0.7.3",

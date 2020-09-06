@@ -5,8 +5,20 @@
     <%= htmlWebpackPlugin.tags.headTags %>
   </head>
 
-  <body>
+  <style>
+    body {
+      background-color: aliceblue;
+      display: flex;
+      justify-content: center;
+    }
 
+    canvas {
+      background-color: white;
+    }
+  </style>
+
+  <body>
+      <canvas id="canvas" width="800" height="600"></canvas>
       <%= htmlWebpackPlugin.tags.bodyTags %>
   </body>
 </html>

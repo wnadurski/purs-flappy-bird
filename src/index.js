@@ -2,7 +2,7 @@
 
 console.log('app starting');
 
-require('./Main.purs').main();
+require('../output/Main').main();
 
 if (module.hot) {
   module.hot.accept();

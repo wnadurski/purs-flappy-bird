@@ -1,0 +1,1 @@
+exports.imageSize = (img) => ({ w: img.naturalWidth, h: img.naturalHeight })
