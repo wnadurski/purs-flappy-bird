@@ -1,13 +1,14 @@
 module Data.Entity where
 
 import Prelude
+
 import Data.Component (Component, ComponentFilter)
 import Data.Foldable (and, find)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Lens (Iso')
 import Data.Lens.Iso.Newtype (_Newtype)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Predicate (Predicate(..))
 
@@ -44,3 +45,13 @@ mapComponents :: ComponentFilter -> (Component -> Component) -> Entity -> Entity
 mapComponents checker mapper (Entity components) =
   Entity $ components
     <#> (\c -> if (unwrap checker) c then mapper c else c)
+
+
+mapComponentsWith :: forall a. (Component -> Maybe a) -> (a -> Component) -> Entity -> Entity
+mapComponentsWith getData mapper (Entity components) =
+  Entity $ components
+    <#> maybe'' (map mapper <<< getData)
+
+
+maybe'' :: forall a. (a -> Maybe a) -> a ->  a
+maybe'' mapper default = fromMaybe default (mapper default)

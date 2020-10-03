@@ -1,13 +1,18 @@
 module Main where
 
+import Data.Component (isPlayer)
 import Data.DateTime.Instant (unInstant)
+import Data.Entity (hasComponent)
 import Data.GameState (GameState)
 import Data.Maybe (Maybe(..), fromJust)
 import Data.Newtype (unwrap)
+import Data.Scene (filterEntities)
 import Data.Time.Duration (Seconds(..), convertDuration)
+import Debug.Trace (spy)
 import Effect (Effect, foreachE)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Now (now)
 import Effect.Ref as Ref
 import Game (eventHandlers, game, initialState, loadResources)
@@ -29,7 +34,9 @@ init w h ctx win = do
           eventListener
             ( \e -> do
                 currentState <- Ref.read currentGameStateRef
+                _ <- pure $ spy "Before" $ filterEntities currentState.scene (hasComponent isPlayer)
                 newState <- desc.handler e currentState
+                _ <- pure $ spy "Writing" $ filterEntities newState.scene (hasComponent isPlayer)
                 Ref.write newState currentGameStateRef
             )
         target <- desc.target
@@ -47,7 +54,10 @@ init w h ctx win = do
       liftEffect $ Ref.write (Just timestamp) prevTimestampRef
       newState <- game resources ctx delta state
       liftEffect $ (Ref.write newState currentGameStateRef)
-      _ <- liftEffect $ requestAnimationFrame (launchAff_ $ frame newState) win
+      _ <- liftEffect $ requestAnimationFrame (do
+        nextState <- (Ref.read currentGameStateRef)
+        launchAff_ $ frame nextState
+      ) win
       pure unit
   (liftEffect $ Ref.read currentGameStateRef) >>= frame
   pure unit

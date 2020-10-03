@@ -14,6 +14,7 @@ You can edit this file as you like.
   , "profunctor-lenses"
   , "psci-support"
   , "record-extra"
+  , "stringutils"
   , "test-unit"
   ]
 , packages = ./packages.dhall
