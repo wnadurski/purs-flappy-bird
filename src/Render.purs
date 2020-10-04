@@ -12,7 +12,7 @@ import Data.GameGraphics.Canvas (imageSize)
 import Data.GameState (GameState)
 import Data.Maybe (Maybe(..), fromMaybe, fromJust)
 import Data.Newtype (wrap)
-import Data.Scene (Scene)
+import Data.Scene (Scene, Status(..))
 import Data.Scene (Status(..), filterEntities, getEntity)
 import Data.Traversable (sequence, traverse)
 import Data.Vector2 (Point, subtract, zeroVector)
@@ -124,6 +124,9 @@ renderUI ctx state = do
     D.render ctx $ text (uiFont 90 bold) 210.0 245.0 (fillColor (rgb 204 51 153)) "Octopus"
     D.render ctx $ text (uiFont 50 light) 230.0 500.0 (fillColor white) "PRESS SPACE"
     pure unit
+  else if state.scene.status == Loosing then do
+    D.render ctx $ text (uiFont 90 bold) 170.0 245.0 (fillColor (rgb 204 51 153)) "You died."
+    D.render ctx $ text (uiFont 50 light) 230.0 500.0 (fillColor white) "PRESS SPACE"
   else
     pure unit
   pure unit

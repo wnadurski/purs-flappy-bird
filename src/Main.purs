@@ -27,16 +27,17 @@ init :: Number -> Number -> Context2D -> Window -> Aff Unit
 init w h ctx win = do
   prevTimestampRef <- liftEffect $ Ref.new (Nothing :: Maybe Seconds)
   resources <- loadResources
-  currentGameStateRef <- liftEffect $ Ref.new $ initialState resources w h
-  liftEffect $ foreachE eventHandlers
+  let initialStateCopy = initialState resources w h
+  currentGameStateRef <- liftEffect $ Ref.new $ initialStateCopy 
+  liftEffect $ foreachE ( eventHandlers initialStateCopy.scene )
     ( \desc -> do
         listener <-
           eventListener
             ( \e -> do
                 currentState <- Ref.read currentGameStateRef
-                _ <- pure $ spy "Before" $ filterEntities currentState.scene (hasComponent isPlayer)
+                _ <- pure $ filterEntities currentState.scene (hasComponent isPlayer)
                 newState <- desc.handler e currentState
-                _ <- pure $ spy "Writing" $ filterEntities newState.scene (hasComponent isPlayer)
+                _ <- pure $ filterEntities newState.scene (hasComponent isPlayer)
                 Ref.write newState currentGameStateRef
             )
         target <- desc.target
@@ -65,7 +66,6 @@ init w h ctx win = do
 main :: Effect Unit
 main = do
   mcanvas <- getCanvasElementById "canvas"
-  log "Hello"
   let
     canvas = unsafePartial (fromJust mcanvas)
   ctx <- getContext2D canvas

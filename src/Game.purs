@@ -2,6 +2,7 @@ module Game where
 
 import Prelude
 
+import Data.Collision (areColliding)
 import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
 import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
 import Data.GameGraphics.Canvas (imageSize, setSmoothingEnabled)
@@ -10,6 +11,7 @@ import Data.Lens (over, set)
 import Data.Maybe (Maybe(..))
 import Data.Scene (Scene, Status(..), mapEntities)
 import Data.Time.Duration (Seconds)
+import Data.Tuple.Nested ((/\))
 import Data.Vector2 (Vector2, add)
 import Debug.Trace (spy)
 import Effect (Effect)
@@ -29,7 +31,6 @@ import Web.HTML (window)
 import Web.HTML.HTMLDocument (toEventTarget)
 import Web.HTML.Window (document)
 import Web.UIEvent.KeyboardEvent (fromEvent, key)
-import Data.Tuple.Nested ((/\))
 
 backgroundEntities :: Resources -> Array Entity
 backgroundEntities resources =
@@ -63,7 +64,7 @@ initialState resources w h =
       { status: Starting
       , entities:
           [ Entity [ Camera, mkTransform (Just { x: 0.0, y: 0.0 }) (Nothing), mkKinematics (Just cameraVelocity), Size { x: w, y: h } ]
-          , Entity [ Id "ground", mkTransform (Just { x: 0.0, y: h - 20.0 }) Nothing, mkCollider { x: w, y: 100.0 }, mkKinematics (Just cameraVelocity) ]
+          , Entity [ Id "ground", mkTransform (Just { x: 0.0, y: h + 20.0 }) Nothing, mkCollider { x: w, y: 100.0 }, mkKinematics (Just cameraVelocity) ]
           ]
             <> backgroundEntities resources
             <> [ playerEntity resources cameraVelocity
@@ -76,7 +77,6 @@ initialState resources w h =
 
 update :: Seconds -> GameState -> Effect GameState
 update delta state = do
-  logShow $ newState.scene.collisions <#> \(e1 /\ e2) -> getEntityId e1 /\ getEntityId e2
   pure newState
   where
   pipeline =
@@ -86,7 +86,7 @@ update delta state = do
 
   newScene = pipeline state.scene
 
-  newState = set _scene newScene state
+  newState = set _scene newScene state # (\newState -> if areColliding newScene.collisions "ground" "player" then newState { scene {status = Loosing} } else newState)
 
 handlePlayerJump :: Scene -> Scene
 handlePlayerJump =
@@ -96,14 +96,15 @@ handlePlayerJump =
         $ over (_kinematics <<< _v) (add { x: 0.0, y: -1000.0 })
     )
 
-handleSpace :: Scene -> Scene
-handleSpace scene = case scene.status of
+handleSpace :: Scene -> Scene -> Scene
+handleSpace initialScene scene = case scene.status of
   Starting -> scene { status = Playing }
   Playing -> handlePlayerJump scene
+  Loosing -> initialScene { status = Playing }
   _ -> scene
 
-eventHandlers :: Array ({ type :: EventType, target :: Effect EventTarget, handler :: Event -> GameState -> Effect GameState })
-eventHandlers =
+eventHandlers :: Scene ->  Array ({ type :: EventType, target :: Effect EventTarget, handler :: Event -> GameState -> Effect GameState })
+eventHandlers initialScene =
   [ { type: EventType "keydown"
     , handler:
         \e state -> do
@@ -112,7 +113,7 @@ eventHandlers =
           pure
             $ case keyEvent of
                 Just e
-                  | key e == " " -> over _scene handleSpace state
+                  | key e == " " -> over _scene ( handleSpace initialScene) state
                 _ -> state
     , target: toEventTarget <$> (document =<< window)
     }
