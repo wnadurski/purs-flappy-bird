@@ -65,6 +65,7 @@ init w h ctx win = do
 main :: Effect Unit
 main = do
   mcanvas <- getCanvasElementById "canvas"
+  log "Hello"
   let
     canvas = unsafePartial (fromJust mcanvas)
   ctx <- getContext2D canvas

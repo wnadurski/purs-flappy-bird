@@ -2,7 +2,7 @@ module Data.Entity where
 
 import Prelude
 
-import Data.Component (Component, ComponentFilter)
+import Data.Component (Component, ComponentFilter, EntityId, getId, isId)
 import Data.Foldable (and, find)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -11,6 +11,7 @@ import Data.Lens.Iso.Newtype (_Newtype)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Predicate (Predicate(..))
+import Data.Tuple (Tuple(..), uncurry)
 
 newtype Entity
   = Entity (Array Component)
@@ -55,3 +56,9 @@ mapComponentsWith getData mapper (Entity components) =
 
 maybe'' :: forall a. (a -> Maybe a) -> a ->  a
 maybe'' mapper default = fromMaybe default (mapper default)
+
+getEntityId :: Entity -> Maybe EntityId
+getEntityId e = getComponent isId e >>= getId 
+
+eqId :: Entity -> Entity -> Boolean
+eqId e1 e2 = fromMaybe false $ Tuple <$> getEntityId e1 <*> getEntityId e2 <#> (uncurry eq)

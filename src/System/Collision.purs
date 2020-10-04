@@ -1,15 +1,18 @@
 module System.Collision where
 
 import Prelude
-import Data.Component (_position, getCollider, getTransformData, isCollider, isTransform)
+
+import Data.Array (filter, nubBy, nubByEq)
+import Data.Collision (eqCollisions)
+import Data.Component (_position, getCollider, getTransformData, isCollider, isId, isTransform)
 import Data.Either (Either(..))
-import Data.Entity (Entity, getComponent, hasComponent)
+import Data.Entity (Entity, eqId, getComponent, hasComponent)
 import Data.Lens (preview)
 import Data.Maybe (fromMaybe)
 import Data.Scene (filterEntities, Scene)
 import Data.Time.Duration (Seconds)
 import Data.Tuple (Tuple(..), uncurry)
-import Data.Array (filter)
+import Debug.Trace (spy)
 
 check :: Entity -> Entity -> Boolean
 check e1 e2 =
@@ -33,10 +36,10 @@ check e1 e2 =
 collisionSystem :: Seconds -> Scene -> Scene
 collisionSystem delta scene =
   let
-    collidingEntities = filterEntities scene (hasComponent isTransform && hasComponent isCollider)
+    collidingEntities = filterEntities scene (hasComponent isTransform && hasComponent isCollider && hasComponent isId)
 
-    collisionChecks = Tuple <$> collidingEntities <*> collidingEntities
+    collisionChecks = Tuple <$> collidingEntities <*> collidingEntities 
 
-    collisions' = (filter (uncurry check) <<< filter (uncurry notEq)) collisionChecks
+    collisions' = (nubByEq eqCollisions <<< filter (uncurry check) <<< filter (not <<< uncurry eqId)) collisionChecks
   in
     scene { collisions = collisions' }

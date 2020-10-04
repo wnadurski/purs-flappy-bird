@@ -3,7 +3,7 @@ module Game where
 import Prelude
 
 import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
-import Data.Entity (Entity(..), hasComponent, mapComponents)
+import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
 import Data.GameGraphics.Canvas (imageSize, setSmoothingEnabled)
 import Data.GameState (GameState, _scene)
 import Data.Lens (over, set)
@@ -29,6 +29,7 @@ import Web.HTML (window)
 import Web.HTML.HTMLDocument (toEventTarget)
 import Web.HTML.Window (document)
 import Web.UIEvent.KeyboardEvent (fromEvent, key)
+import Data.Tuple.Nested ((/\))
 
 backgroundEntities :: Resources -> Array Entity
 backgroundEntities resources =
@@ -44,6 +45,7 @@ playerEntity :: Resources -> Vector2 -> Entity
 playerEntity res cameraVelocity =
   Entity
     [ Player
+    , Id "player"
     , mkTransform (Just { x: 75.0, y: 50.0 }) (Just scale)
     , mkKinematics (Just cameraVelocity)
     , CanvasSpriteRenderer res.player
@@ -74,7 +76,7 @@ initialState resources w h =
 
 update :: Seconds -> GameState -> Effect GameState
 update delta state = do
-  logShow $ newState.scene.collisions
+  logShow $ newState.scene.collisions <#> \(e1 /\ e2) -> getEntityId e1 /\ getEntityId e2
   pure newState
   where
   pipeline =
