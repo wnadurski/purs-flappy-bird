@@ -1,7 +1,6 @@
 module Game where
 
 import Prelude
-
 import Data.Collision (areColliding)
 import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
 import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
@@ -21,7 +20,7 @@ import Effect.Console (logShow)
 import Graphics.Canvas (CanvasImageSource, Context2D)
 import Image (loadImage)
 import Record.Extra (sequenceRecord)
-import Render (render)
+import Render (Render(..), render)
 import System.Background (backgroundSystem, backgroundTransform)
 import System.Collision (collisionSystem)
 import System.Physics (physicsSystem)
@@ -69,6 +68,7 @@ initialState resources w h =
             <> backgroundEntities resources
             <> [ playerEntity resources cameraVelocity
               ]
+            <> [ Entity [ Id "octopus-1", mkTransform (Just { x: 450.0, y: 250.0 }) (Just ({ x: 4.0, y: 4.0 })), CanvasSpriteRenderer resources.octopus, mkCollider { x: 50.0, y: 100.0 } ] ]
       , collisions: []
       }
   }
@@ -86,7 +86,7 @@ update delta state = do
 
   newScene = pipeline state.scene
 
-  newState = set _scene newScene state # (\newState -> if areColliding newScene.collisions "ground" "player" then newState { scene {status = Loosing} } else newState)
+  newState = set _scene newScene state # (\newState -> if areColliding newScene.collisions "ground" "player" then newState { scene { status = Loosing } } else newState)
 
 handlePlayerJump :: Scene -> Scene
 handlePlayerJump =
@@ -103,7 +103,7 @@ handleSpace initialScene scene = case scene.status of
   Loosing -> initialScene { status = Playing }
   _ -> scene
 
-eventHandlers :: Scene ->  Array ({ type :: EventType, target :: Effect EventTarget, handler :: Event -> GameState -> Effect GameState })
+eventHandlers :: Scene -> Array ({ type :: EventType, target :: Effect EventTarget, handler :: Event -> GameState -> Effect GameState })
 eventHandlers initialScene =
   [ { type: EventType "keydown"
     , handler:
@@ -113,7 +113,7 @@ eventHandlers initialScene =
           pure
             $ case keyEvent of
                 Just e
-                  | key e == " " -> over _scene ( handleSpace initialScene) state
+                  | key e == " " -> over _scene (handleSpace initialScene) state
                 _ -> state
     , target: toEventTarget <$> (document =<< window)
     }
@@ -124,6 +124,7 @@ type Resources
     , backgroundMiddle :: CanvasImageSource
     , backgroundFront :: CanvasImageSource
     , player :: CanvasImageSource
+    , octopus :: CanvasImageSource
     }
 
 loadResources :: Aff Resources
@@ -133,6 +134,7 @@ loadResources =
       , backgroundMiddle: loadImage "/resources/background/parallax-forest-middle-trees.png"
       , backgroundFront: loadImage "/resources/background/parallax-forest-front-trees.png"
       , player: loadImage "/resources/chicken.png"
+      , octopus: loadImage "/resources/octopus.png"
       }
 
 game :: Resources -> Context2D -> Seconds -> GameState -> Aff GameState
