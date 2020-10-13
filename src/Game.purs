@@ -130,11 +130,11 @@ type Resources
 loadResources :: Aff Resources
 loadResources =
   sequenceRecord
-    $ { backgroundBack: loadImage "/resources/background/parallax-forest-back-trees.png"
-      , backgroundMiddle: loadImage "/resources/background/parallax-forest-middle-trees.png"
-      , backgroundFront: loadImage "/resources/background/parallax-forest-front-trees.png"
-      , player: loadImage "/resources/chicken.png"
-      , octopus: loadImage "/resources/octopus.png"
+    $ { backgroundBack: loadImage "resources/background/parallax-forest-back-trees.png"
+      , backgroundMiddle: loadImage "resources/background/parallax-forest-middle-trees.png"
+      , backgroundFront: loadImage "resources/background/parallax-forest-front-trees.png"
+      , player: loadImage "resources/chicken.png"
+      , octopus: loadImage "resources/octopus.png"
       }
 
 game :: Resources -> Context2D -> Seconds -> GameState -> Aff GameState
