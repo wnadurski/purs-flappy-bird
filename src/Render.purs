@@ -142,7 +142,7 @@ addColliders scene =
           transform = unsafePartial $ fromJust $ getComponent isTransform e
           collider = unsafePartial $ fromJust $ getComponent isCollider e >>= getCollider
         in
-          Entity [transform, DrawingRenderer $ outlined (outlineColor red <> lineWidth 2.0) (rectangle 0.0 0.0 collider.x collider.y)]
+          Entity [transform, DrawingRenderer $ outlined (outlineColor red <> lineWidth 2.0) (rectangle collider.shift.x collider.shift.y collider.size.x collider.size.y)]
       )
 
   in

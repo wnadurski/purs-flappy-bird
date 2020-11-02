@@ -4,14 +4,16 @@ import Prelude
 import Data.Collision (areColliding)
 import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
 import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
+import Data.Foldable (or)
 import Data.GameGraphics.Canvas (imageSize, setSmoothingEnabled)
 import Data.GameState (GameState, _scene)
 import Data.Lens (over, set)
 import Data.Maybe (Maybe(..))
 import Data.Scene (Scene, Status(..), mapEntities)
 import Data.Time.Duration (Seconds)
+import Data.Tuple (Tuple(..), uncurry)
 import Data.Tuple.Nested ((/\))
-import Data.Vector2 (Vector2, add)
+import Data.Vector2 (Vector2, add, zeroVector)
 import Debug.Trace (spy)
 import Effect (Effect)
 import Effect.Aff (Aff)
@@ -50,7 +52,7 @@ playerEntity res cameraVelocity =
     , mkKinematics (Just cameraVelocity)
     , CanvasSpriteRenderer res.player
     , RigidBody
-    , mkCollider { x: scale.x * spriteSize.w, y: scale.y * spriteSize.h }
+    , mkCollider { x: scale.x * spriteSize.w, y: scale.y * spriteSize.h } zeroVector
     ]
   where
   scale = { x: 5.0, y: 5.0 }
@@ -63,17 +65,25 @@ initialState resources w h =
       { status: Starting
       , entities:
           [ Entity [ Camera, mkTransform (Just { x: 0.0, y: 0.0 }) (Nothing), mkKinematics (Just cameraVelocity), Size { x: w, y: h } ]
-          , Entity [ Id "ground", mkTransform (Just { x: 0.0, y: h + 20.0 }) Nothing, mkCollider { x: w, y: 100.0 }, mkKinematics (Just cameraVelocity) ]
+          , Entity [ Id "ground", mkTransform (Just { x: 0.0, y: h + 20.0 }) Nothing, mkCollider { x: w, y: 100.0 } zeroVector, mkKinematics (Just cameraVelocity) ]
+          , Entity [ Id "ceiling", mkTransform (Just { x: 0.0, y: -180.0 }) Nothing, mkCollider { x: w, y: 100.0 } zeroVector, mkKinematics (Just cameraVelocity) ]
           ]
             <> backgroundEntities resources
             <> [ playerEntity resources cameraVelocity
               ]
-            <> [ Entity [ Id "octopus-1", mkTransform (Just { x: 450.0, y: 250.0 }) (Just ({ x: 4.0, y: 4.0 })), CanvasSpriteRenderer resources.octopus, mkCollider { x: 50.0, y: 100.0 } ] ]
+            <> [ Entity [ Id "octopus-1", mkTransform (Just { x: 450.0, y: 250.0 }) (Just ({ x: 4.0, y: 4.0 })), CanvasSpriteRenderer resources.octopus, mkCollider { x: 46.0, y: 320.0 } { x: 28.0, y: 18.0 } ] ]
       , collisions: []
       }
   }
   where
   cameraVelocity = { x: 200.0, y: 0.0 }
+
+loosingCollisions :: Array (Tuple String String)
+loosingCollisions =
+  [ "ground" /\ "player"
+  , "octopus-1" /\ "player"
+  , "ceiling" /\ "player"
+  ]
 
 update :: Seconds -> GameState -> Effect GameState
 update delta state = do
@@ -86,7 +96,9 @@ update delta state = do
 
   newScene = pipeline state.scene
 
-  newState = set _scene newScene state # (\newState -> if areColliding newScene.collisions "ground" "player" then newState { scene { status = Loosing } } else newState)
+  areCollidingInScene = areColliding newScene.collisions
+
+  newState = set _scene newScene state # (\newState -> if (or $ (uncurry areCollidingInScene) <$> loosingCollisions) then newState { scene { status = Loosing } } else newState)
 
 handlePlayerJump :: Scene -> Scene
 handlePlayerJump =

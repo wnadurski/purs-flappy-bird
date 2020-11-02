@@ -30,7 +30,9 @@ type KinematicsData
     }
 
 type ColliderData
-  = Vector2
+  = { size :: Vector2,
+      shift :: Vector2
+    }
 
 type EntityId
   = String
@@ -192,5 +194,5 @@ getCollider = case _ of
 isCollider :: ComponentFilter
 isCollider = Predicate \c -> isJust $ getCollider c
 
-mkCollider :: Vector2 -> Component
-mkCollider new = Collider new
+mkCollider :: Vector2 -> Vector2 -> Component
+mkCollider size shift = Collider { size, shift }
