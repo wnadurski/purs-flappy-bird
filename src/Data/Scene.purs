@@ -17,6 +17,7 @@ type Scene
   = { entities :: Array Entity
     , status :: Status
     , collisions :: Array Collision
+    , randomSeed :: Int
     }
 
 filterEntities :: Scene -> EntityFilter -> Array Entity

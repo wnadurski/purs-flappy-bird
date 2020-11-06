@@ -1,7 +1,6 @@
 module Render where
 
 import Prelude
-
 import Color (rgba, white, rgb)
 import Color.Scheme.Clrs (red)
 import Color.Scheme.MaterialDesign (amber)
@@ -18,7 +17,7 @@ import Data.Traversable (sequence, traverse)
 import Data.Vector2 (Point, subtract, zeroVector)
 import Effect (Effect, foreachE)
 import Effect.Class.Console (log, logShow)
-import Graphics.Canvas (CanvasImageSource, Context2D, drawImage, drawImageScale)
+import Graphics.Canvas (CanvasImageSource, Context2D, drawImage, drawImageScale, restore, save, scale)
 import Graphics.Drawing (Drawing, Font, fillColor, filled, lineWidth, outlineColor, outlined, rectangle, text)
 import Graphics.Drawing as D
 import Graphics.Drawing.Font (FontOptions, bold, font, light, monospace)
@@ -39,7 +38,7 @@ processDrawing camera e =
   in
     translateDrawing <$> mbCameraPos <*> mbPosition <*> mbDrawing
 
-processSprite :: Entity -> Entity -> Maybe { position :: Point, src :: CanvasImageSource, size :: Point }
+processSprite :: Entity -> Entity -> Maybe { position :: Point, src :: CanvasImageSource, size :: Point, scale :: Point }
 processSprite camera e =
   let
     mbCameraPos = getComponent isTransform camera >>= getTransformData <#> _.position
@@ -57,7 +56,8 @@ processSprite camera e =
   in
     sequenceRecord
       $ { position: subtract <$> mbPosition <*> mbCameraPos
-        , size: doScale <$> mbSpriteSize <*> mbScale
+        , size: mbSpriteSize
+        , scale: mbScale
         , src: mbSprite
         }
 
@@ -69,11 +69,15 @@ process camera (CanvasSpriteRenderEntity e) = processSprite camera e <#> CanvasS
 renderByType :: Context2D -> Render -> Effect Unit
 renderByType ctx = case _ of
   DrawingRender drawing -> D.render ctx drawing
-  CanvasSpriteRender d -> drawImageScale ctx d.src d.position.x d.position.y d.size.x d.size.y
+  CanvasSpriteRender d -> do
+    save ctx
+    scale ctx { scaleX: d.scale.x, scaleY: d.scale.y }
+    drawImageScale ctx d.src ((d.position.x / d.scale.x) - (if d.scale.x < 0.0 then d.size.x else 0.0)) ((d.position.y / d.scale.y) - (if d.scale.y < 0.0 then d.size.y else 0.0)) d.size.x d.size.y
+    restore ctx
 
 data Render
   = DrawingRender Drawing
-  | CanvasSpriteRender { position :: Point, src :: CanvasImageSource, size :: Point }
+  | CanvasSpriteRender { position :: Point, src :: CanvasImageSource, size :: Point, scale :: Point }
 
 data RenderEntity
   = DrawingRenderEntity Entity
@@ -83,8 +87,10 @@ data RenderEntity
 render :: Context2D -> GameState -> Effect Unit
 render ctx state = do
   let
-    debug = true
+    debug = false
+
     newScene = if debug then addColliders state.scene else state.scene
+
     drawingEntities = filterEntities newScene $ (hasComponent isDrawingRenderer || hasComponent isCanvasSpriteRenderer) && hasComponent isTransform
 
     mcamera = getEntity state.scene (hasComponent isCamera)
@@ -124,30 +130,31 @@ renderUI ctx state = do
     D.render ctx $ text (uiFont 90 bold) 210.0 245.0 (fillColor (rgb 204 51 153)) "Octopus"
     D.render ctx $ text (uiFont 50 light) 230.0 500.0 (fillColor white) "PRESS SPACE"
     pure unit
-  else if state.scene.status == Loosing then do
-    D.render ctx $ text (uiFont 90 bold) 170.0 245.0 (fillColor (rgb 204 51 153)) "You died."
-    D.render ctx $ text (uiFont 50 light) 230.0 500.0 (fillColor white) "PRESS SPACE"
   else
-    pure unit
+    if state.scene.status == Loosing then do
+      D.render ctx $ text (uiFont 90 bold) 170.0 245.0 (fillColor (rgb 204 51 153)) "You died."
+      D.render ctx $ text (uiFont 50 light) 230.0 500.0 (fillColor white) "PRESS SPACE"
+    else
+      pure unit
   pure unit
 
-
 addColliders :: Scene -> Scene
-addColliders scene = 
+addColliders scene =
   let
-    colliderEntities = filterEntities scene (hasComponent isCollider && hasComponent isTransform) 
-    newEntities = colliderEntities 
-      <#> ( \e -> 
-        let 
-          transform = unsafePartial $ fromJust $ getComponent isTransform e
-          collider = unsafePartial $ fromJust $ getComponent isCollider e >>= getCollider
-        in
-          Entity [transform, DrawingRenderer $ outlined (outlineColor red <> lineWidth 2.0) (rectangle collider.shift.x collider.shift.y collider.size.x collider.size.y)]
-      )
+    colliderEntities = filterEntities scene (hasComponent isCollider && hasComponent isTransform)
 
+    newEntities =
+      colliderEntities
+        <#> ( \e ->
+              let
+                transform = unsafePartial $ fromJust $ getComponent isTransform e
+
+                collider = unsafePartial $ fromJust $ getComponent isCollider e >>= getCollider
+              in
+                Entity [ transform, DrawingRenderer $ outlined (outlineColor red <> lineWidth 2.0) (rectangle collider.shift.x collider.shift.y collider.size.x collider.size.y) ]
+          )
   in
-    scene {entities = scene.entities <> newEntities}
-
+    scene { entities = scene.entities <> newEntities }
 
 -- renderColliders :: Context2D -> GameState -> Effect Unit
 -- renderColliders ctx state = do
@@ -172,4 +179,3 @@ addColliders scene =
 --       foreachE processedDrawingEntities (renderByType ctx)
 --       renderUI ctx state
 --       pure unit
-

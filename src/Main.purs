@@ -1,5 +1,7 @@
 module Main where
 
+import Prelude
+
 import Data.Component (isPlayer)
 import Data.DateTime.Instant (unInstant)
 import Data.Entity (hasComponent)
@@ -15,10 +17,12 @@ import Effect.Class (liftEffect)
 import Effect.Class.Console (log)
 import Effect.Now (now)
 import Effect.Ref as Ref
-import Game (eventHandlers, game, initialState, loadResources)
+import Game (eventHandlers, game, initialState)
 import Graphics.Canvas (Context2D, getCanvasElementById, getCanvasHeight, getCanvasWidth, getContext2D, setCanvasHeight, setCanvasWidth)
 import Partial.Unsafe (unsafePartial)
 import Prelude (Unit, bind, discard, pure, unit, ($), (-), (<#>), (>>=))
+import Random.LCG (randomSeed, unSeed)
+import Resources (loadResources)
 import Web.Event.EventTarget (addEventListener, eventListener)
 import Web.HTML (Window, window)
 import Web.HTML.Window (requestAnimationFrame)
@@ -27,7 +31,8 @@ init :: Number -> Number -> Context2D -> Window -> Aff Unit
 init w h ctx win = do
   prevTimestampRef <- liftEffect $ Ref.new (Nothing :: Maybe Seconds)
   resources <- loadResources
-  let initialStateCopy = initialState resources w h
+  seed <- liftEffect $ unSeed <$> randomSeed
+  let initialStateCopy = initialState seed resources w h
   currentGameStateRef <- liftEffect $ Ref.new $ initialStateCopy 
   liftEffect $ foreachE ( eventHandlers initialStateCopy.scene )
     ( \desc -> do

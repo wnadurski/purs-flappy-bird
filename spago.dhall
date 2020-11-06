@@ -11,6 +11,7 @@ You can edit this file as you like.
   , "drawing"
   , "effect"
   , "generics-rep"
+  , "lcg"
   , "profunctor-lenses"
   , "psci-support"
   , "record-extra"

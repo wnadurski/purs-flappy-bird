@@ -1,6 +1,7 @@
 module Game where
 
 import Prelude
+
 import Data.Collision (areColliding)
 import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
 import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
@@ -19,10 +20,13 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (logShow)
+import Enemy (initialEnemies)
 import Graphics.Canvas (CanvasImageSource, Context2D)
 import Image (loadImage)
+import Random.LCG (mkSeed, unSeed)
 import Record.Extra (sequenceRecord)
 import Render (Render(..), render)
+import Resources (Resources)
 import System.Background (backgroundSystem, backgroundTransform)
 import System.Collision (collisionSystem)
 import System.Physics (physicsSystem)
@@ -59,10 +63,11 @@ playerEntity res cameraVelocity =
 
   spriteSize = imageSize res.player
 
-initialState :: Resources -> Number -> Number -> GameState
-initialState resources w h =
+initialState :: Int -> Resources -> Number -> Number -> GameState
+initialState randomSeed resources w h =
   { scene:
       { status: Starting
+      , randomSeed: unSeed newSeed
       , entities:
           [ Entity [ Camera, mkTransform (Just { x: 0.0, y: 0.0 }) (Nothing), mkKinematics (Just cameraVelocity), Size { x: w, y: h } ]
           , Entity [ Id "ground", mkTransform (Just { x: 0.0, y: h + 20.0 }) Nothing, mkCollider { x: w, y: 100.0 } zeroVector, mkKinematics (Just cameraVelocity) ]
@@ -71,17 +76,20 @@ initialState resources w h =
             <> backgroundEntities resources
             <> [ playerEntity resources cameraVelocity
               ]
-            <> [ Entity [ Id "octopus-1", mkTransform (Just { x: 450.0, y: 250.0 }) (Just ({ x: 4.0, y: 4.0 })), CanvasSpriteRenderer resources.octopus, mkCollider { x: 46.0, y: 320.0 } { x: 28.0, y: 18.0 } ] ]
+            <> enemies
       , collisions: []
       }
   }
   where
   cameraVelocity = { x: 200.0, y: 0.0 }
+  (enemies /\ newSeed) = initialEnemies (mkSeed randomSeed) resources
 
 loosingCollisions :: Array (Tuple String String)
 loosingCollisions =
   [ "ground" /\ "player"
   , "octopus-1" /\ "player"
+  , "octopus-2" /\ "player"
+  , "octopus-3" /\ "player"
   , "ceiling" /\ "player"
   ]
 
@@ -130,24 +138,6 @@ eventHandlers initialScene =
     , target: toEventTarget <$> (document =<< window)
     }
   ]
-
-type Resources
-  = { backgroundBack :: CanvasImageSource
-    , backgroundMiddle :: CanvasImageSource
-    , backgroundFront :: CanvasImageSource
-    , player :: CanvasImageSource
-    , octopus :: CanvasImageSource
-    }
-
-loadResources :: Aff Resources
-loadResources =
-  sequenceRecord
-    $ { backgroundBack: loadImage "resources/background/parallax-forest-back-trees.png"
-      , backgroundMiddle: loadImage "resources/background/parallax-forest-middle-trees.png"
-      , backgroundFront: loadImage "resources/background/parallax-forest-front-trees.png"
-      , player: loadImage "resources/chicken.png"
-      , octopus: loadImage "resources/octopus.png"
-      }
 
 game :: Resources -> Context2D -> Seconds -> GameState -> Aff GameState
 game resources ctx delta state = do
