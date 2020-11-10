@@ -20,7 +20,7 @@ import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (logShow)
-import Enemy (initialEnemies)
+import Enemy (enemiesSystem, initialEnemies)
 import Graphics.Canvas (CanvasImageSource, Context2D)
 import Image (loadImage)
 import Random.LCG (mkSeed, unSeed)
@@ -68,6 +68,7 @@ initialState randomSeed resources w h =
   { scene:
       { status: Starting
       , randomSeed: unSeed newSeed
+      , enemyIndex: 4
       , entities:
           [ Entity [ Camera, mkTransform (Just { x: 0.0, y: 0.0 }) (Nothing), mkKinematics (Just cameraVelocity), Size { x: w, y: h } ]
           , Entity [ Id "ground", mkTransform (Just { x: 0.0, y: h + 20.0 }) Nothing, mkCollider { x: w, y: 100.0 } zeroVector, mkKinematics (Just cameraVelocity) ]
@@ -101,6 +102,7 @@ update delta state = do
     (if state.scene.status == Playing then collisionSystem delta else identity)
       <<< (if state.scene.status == Playing then physicsSystem delta else identity)
       <<< (if state.scene.status == Playing then backgroundSystem delta else identity)
+      <<< (if state.scene.status == Playing then enemiesSystem delta else identity)
 
   newScene = pipeline state.scene
 

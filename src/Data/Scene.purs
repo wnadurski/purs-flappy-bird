@@ -18,6 +18,7 @@ type Scene
     , status :: Status
     , collisions :: Array Collision
     , randomSeed :: Int
+    , enemyIndex :: Int
     }
 
 filterEntities :: Scene -> EntityFilter -> Array Entity
