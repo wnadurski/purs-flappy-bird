@@ -4,24 +4,30 @@ import Prelude
 import Color (rgba, white, rgb)
 import Color.Scheme.Clrs (red)
 import Color.Scheme.MaterialDesign (amber)
-import Data.Component (Component(..), TansformData, getCanvasSpriteRendererData, getCollider, getDrawingRendererData, getSize, getTransformData, isCamera, isCanvasSpriteRenderer, isCollider, isDrawingRenderer, isSize, isTransform)
+import Data.Animation (Animation(..), getFrameData)
+import Data.Array.NonEmpty (length, (!!))
+import Data.Component (Component(..), TansformData, getAnimationRenderer, getCanvasSpriteRendererData, getCollider, getDrawingRendererData, getSize, getTransformData, isAnimationRenderer, isCamera, isCanvasSpriteRenderer, isCollider, isDrawingRenderer, isSize, isTransform)
 import Data.Entity (Entity(..), askFilter, getComponent, hasComponent, hasComponents)
-import Data.Foldable (fold)
+import Data.Foldable (find, fold)
 import Data.GameGraphics.Canvas (imageSize)
 import Data.GameState (GameState)
+import Data.Int (floor, toNumber)
 import Data.Maybe (Maybe(..), fromMaybe, fromJust)
-import Data.Newtype (wrap)
+import Data.Newtype (unwrap, wrap)
 import Data.Scene (Scene, Status(..))
 import Data.Scene (Status(..), filterEntities, getEntity)
+import Data.Symbol (SProxy(..))
+import Data.Time.Duration (Seconds(..))
 import Data.Traversable (sequence, traverse)
 import Data.Vector2 (Point, subtract, zeroVector)
 import Effect (Effect, foreachE)
 import Effect.Class.Console (log, logShow)
-import Graphics.Canvas (CanvasImageSource, Context2D, drawImage, drawImageScale, restore, save, scale)
+import Graphics.Canvas (CanvasImageSource, Context2D, drawImage, drawImageFull, drawImageScale, restore, save, scale)
 import Graphics.Drawing (Drawing, Font, fillColor, filled, lineWidth, outlineColor, outlined, rectangle, text)
 import Graphics.Drawing as D
 import Graphics.Drawing.Font (FontOptions, bold, font, light, monospace)
 import Partial.Unsafe (unsafePartial)
+import Record as R
 import Record.Extra (sequenceRecord)
 
 translateDrawing :: Point -> Point -> Drawing -> Drawing
@@ -38,33 +44,55 @@ processDrawing camera e =
   in
     translateDrawing <$> mbCameraPos <*> mbPosition <*> mbDrawing
 
-processSprite :: Entity -> Entity -> Maybe { position :: Point, src :: CanvasImageSource, size :: Point, scale :: Point }
-processSprite camera e =
+processTransform :: Entity -> Entity -> Maybe { position :: Point, scale :: Point }
+processTransform camera e =
   let
     mbCameraPos = getComponent isTransform camera >>= getTransformData <#> _.position
-
-    mbSprite = getComponent isCanvasSpriteRenderer e >>= getCanvasSpriteRendererData
-
-    mbSpriteSize = (\size -> { x: size.w, y: size.h }) <<< imageSize <$> mbSprite
 
     mbPosition = getComponent isTransform e >>= getTransformData <#> _.position
 
     mbScale = getComponent isTransform e >>= getTransformData <#> _.scale
-
-    doScale :: Point -> Point -> Point
-    doScale size scale = { x: size.x * scale.x, y: size.y * scale.y }
   in
     sequenceRecord
       $ { position: subtract <$> mbPosition <*> mbCameraPos
-        , size: mbSpriteSize
         , scale: mbScale
-        , src: mbSprite
         }
 
-process :: Entity -> RenderEntity -> Maybe Render
-process camera (DrawingRenderEntity e) = processDrawing camera e <#> DrawingRender
+processSprite :: Entity -> Entity -> Maybe { position :: Point, src :: CanvasImageSource, size :: Point, scale :: Point }
+processSprite camera e =
+  let
+    mbSprite = getComponent isCanvasSpriteRenderer e >>= getCanvasSpriteRendererData
 
-process camera (CanvasSpriteRenderEntity e) = processSprite camera e <#> CanvasSpriteRender
+    mbSpriteSize = (\size -> { x: size.w, y: size.h }) <<< imageSize <$> mbSprite
+  in
+    R.merge
+      <$> ( sequenceRecord
+            $ { size: mbSpriteSize
+              , src: mbSprite
+              }
+        )
+      <*> (processTransform camera e)
+
+processAnimation :: GameState -> Entity -> Entity -> Maybe { position :: Point, animation :: Animation, scale :: Point, elapsedTime :: Seconds }
+processAnimation state camera e = R.merge <$> (processTransform camera e) <*> animationSpecific
+  where
+  mbAnimationData = getComponent isAnimationRenderer e >>= getAnimationRenderer
+
+  animationSpecific =
+    sequenceRecord
+      { elapsedTime: mbAnimationData >>= R.get (SProxy :: SProxy "elapsed")
+      , animation:
+          do
+            key <- mbAnimationData <#> R.get (SProxy :: SProxy "key")
+            find (\anim -> anim.key == key) state.animations
+      }
+
+process :: GameState -> Entity -> RenderEntity -> Maybe Render
+process _ camera (DrawingRenderEntity e) = processDrawing camera e <#> DrawingRender
+
+process _ camera (CanvasSpriteRenderEntity e) = processSprite camera e <#> CanvasSpriteRender
+
+process state camera (AnimationRenderEntity e) = processAnimation state camera e <#> AnimationRender
 
 renderByType :: Context2D -> Render -> Effect Unit
 renderByType ctx = case _ of
@@ -74,14 +102,28 @@ renderByType ctx = case _ of
     scale ctx { scaleX: d.scale.x, scaleY: d.scale.y }
     drawImageScale ctx d.src ((d.position.x / d.scale.x) - (if d.scale.x < 0.0 then d.size.x else 0.0)) ((d.position.y / d.scale.y) - (if d.scale.y < 0.0 then d.size.y else 0.0)) d.size.x d.size.y
     restore ctx
+  AnimationRender d -> do
+    let
+      frameIndex = (floor ((toNumber d.animation.frameRate) * (unwrap d.elapsedTime))) `mod` (length d.animation.frames)
+
+      mbFrame = d.animation.frames !! frameIndex <#> getFrameData
+    case mbFrame of
+      Nothing -> pure unit
+      Just frame -> do
+        save ctx
+        scale ctx { scaleX: d.scale.x, scaleY: d.scale.y }
+        drawImageFull ctx frame.sheet (frame.position.x) (frame.position.y) (frame.size.x) (frame.size.y) ((d.position.x / d.scale.x) - (if d.scale.x < 0.0 then frame.size.x else 0.0)) ((d.position.y / d.scale.y) - (if d.scale.y < 0.0 then frame.size.y else 0.0)) frame.size.x frame.size.y
+        restore ctx
 
 data Render
   = DrawingRender Drawing
   | CanvasSpriteRender { position :: Point, src :: CanvasImageSource, size :: Point, scale :: Point }
+  | AnimationRender { position :: Point, animation :: Animation, scale :: Point, elapsedTime :: Seconds }
 
 data RenderEntity
   = DrawingRenderEntity Entity
   | CanvasSpriteRenderEntity Entity
+  | AnimationRenderEntity Entity
 
 -- derive instance name :: Class Type
 render :: Context2D -> GameState -> Effect Unit
@@ -91,7 +133,7 @@ render ctx state = do
 
     newScene = if debug then addColliders state.scene else state.scene
 
-    drawingEntities = filterEntities newScene $ (hasComponent isDrawingRenderer || hasComponent isCanvasSpriteRenderer) && hasComponent isTransform
+    drawingEntities = filterEntities newScene $ (hasComponent isDrawingRenderer || hasComponent isCanvasSpriteRenderer || hasComponent isAnimationRenderer) && hasComponent isTransform
 
     mcamera = getEntity state.scene (hasComponent isCamera)
   case mcamera of
@@ -104,9 +146,12 @@ render ctx state = do
                   if askFilter (hasComponent isDrawingRenderer) e then
                     DrawingRenderEntity e
                   else
-                    CanvasSpriteRenderEntity e
+                    if askFilter (hasComponent isCanvasSpriteRenderer) e then
+                      CanvasSpriteRenderEntity e
+                    else
+                      AnimationRenderEntity e
               )
-            <#> process camera
+            <#> process state camera
             # sequence
             # fold
       foreachE processedDrawingEntities (renderByType ctx)

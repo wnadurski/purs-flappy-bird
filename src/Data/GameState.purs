@@ -1,6 +1,7 @@
 module Data.GameState where
 
 import Prelude
+import Data.Animation (Animation(..))
 import Data.Lens (Lens')
 import Data.Lens.Record (prop)
 import Data.Scene (Scene)
@@ -8,6 +9,7 @@ import Data.Symbol (SProxy(..))
 
 type GameState
   = { scene :: Scene
+    , animations :: Array Animation
     }
 
 _scene :: forall a r. Lens' { scene :: a | r } a

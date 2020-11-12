@@ -1,10 +1,10 @@
 module Game where
 
 import Prelude
-
 import Color (white)
+import Data.Animation (Animation(..), RepeatMode(..), makeNFrames, mkAnimation)
 import Data.Collision (areColliding)
-import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
+import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkAnimationRenderer, mkCollider, mkKinematics, mkTransform)
 import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
 import Data.Foldable (or)
 import Data.GameGraphics.Canvas (imageSize, setSmoothingEnabled)
@@ -31,6 +31,7 @@ import Record.Extra (sequenceRecord)
 import Render (Render(..), render, uiFont)
 import Resources (Resources)
 import ScoreIndicator (scoreIndicatorSystem, scoreText)
+import System.Animation (animationSystem)
 import System.Background (backgroundSystem, backgroundTransform)
 import System.Collision (collisionSystem)
 import System.Physics (physicsSystem)
@@ -58,9 +59,9 @@ playerEntity res cameraVelocity =
     , Id "player"
     , mkTransform (Just { x: 75.0, y: 50.0 }) (Just scale)
     , mkKinematics (Just cameraVelocity)
-    , CanvasSpriteRenderer res.player
+    , mkAnimationRenderer "player-anim"
     , RigidBody
-    , mkCollider { x: scale.x * spriteSize.w, y: scale.y * spriteSize.h } zeroVector
+    , mkCollider { x: scale.x * (spriteSize.w / 4.0), y: scale.y * spriteSize.h } zeroVector
     ]
   where
   scale = { x: 5.0, y: 5.0 }
@@ -82,12 +83,14 @@ initialState randomSeed resources w h =
             <> [ playerEntity resources cameraVelocity
               ]
             <> enemies
-            <> [ Entity [ Id "scoreText", mkTransform (Just {x: 30.0, y: 30.0}) Nothing, DrawingRenderer (scoreText ""), mkKinematics (Just cameraVelocity)] ]
+            <> [ Entity [ Id "scoreText", mkTransform (Just { x: 30.0, y: 30.0 }) Nothing, DrawingRenderer (scoreText ""), mkKinematics (Just cameraVelocity) ] ]
       , collisions: []
       }
+  , animations: [ mkAnimation "player-anim" 8 (makeNFrames 4 resources.player) Loop ]
   }
   where
   cameraVelocity = { x: 200.0, y: 0.0 }
+
   (enemies /\ newSeed) = initialEnemies (mkSeed randomSeed) resources
 
 loosingCollisions :: Array (Tuple String String)
@@ -109,6 +112,7 @@ update delta state = do
       <<< (if state.scene.status == Playing then backgroundSystem delta else identity)
       <<< (if state.scene.status == Playing then enemiesSystem delta else identity)
       <<< scoreIndicatorSystem delta
+      <<< animationSystem delta
 
   newScene = pipeline state.scene
 

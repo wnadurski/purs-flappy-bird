@@ -8,11 +8,13 @@ import Data.Maybe (Maybe(..), fromMaybe, isJust)
 import Data.Predicate (Predicate(..))
 import Data.String.Utils (startsWith)
 import Data.Symbol (SProxy(..))
+import Data.Time.Duration (Seconds(..))
 import Data.Vector2 (Point, Vector2, zeroVector)
 import Graphics.Canvas (CanvasImageSource)
 import Graphics.Drawing (Drawing)
 import Prim.Row (class Union)
 import Record (merge)
+import Web.HTML.HTMLMediaElement.CanPlayType (CanPlayType(..))
 
 -- newtype Component = Component 
 --     { name :: String,
@@ -30,8 +32,13 @@ type KinematicsData
     }
 
 type ColliderData
-  = { size :: Vector2,
-      shift :: Vector2
+  = { size :: Vector2
+    , shift :: Vector2
+    }
+
+type AnimationRendererData
+  = { key :: String
+    , elapsed :: Maybe Seconds
     }
 
 type EntityId
@@ -43,6 +50,7 @@ data Component
   | Kinematics KinematicsData
   | DrawingRenderer Drawing
   | CanvasSpriteRenderer CanvasImageSource
+  | AnimationRenderer AnimationRendererData
   | Id EntityId
   | Collider ColliderData
   | RigidBody
@@ -62,6 +70,7 @@ instance showComponent :: Show Component where
   show (Id id) = "Id(" <> id <> ")"
   show (RigidBody) = "RigidBody"
   show (Collider d) = "Collider(" <> show d <> ")"
+  show (AnimationRenderer d) = "AnimationRenderer(" <> show d.key <> ")"
 
 type ComponentFilter
   = Predicate Component
@@ -185,7 +194,6 @@ isRigidBody =
     RigidBody -> true
     _ -> false
 
-
 getCollider :: Component -> Maybe ColliderData
 getCollider = case _ of
   Collider d -> Just d
@@ -196,3 +204,14 @@ isCollider = Predicate \c -> isJust $ getCollider c
 
 mkCollider :: Vector2 -> Vector2 -> Component
 mkCollider size shift = Collider { size, shift }
+
+mkAnimationRenderer :: String -> Component
+mkAnimationRenderer key = AnimationRenderer { key, elapsed: Nothing }
+
+getAnimationRenderer :: Component -> Maybe AnimationRendererData
+getAnimationRenderer = case _ of
+  AnimationRenderer d -> Just d
+  _ -> Nothing
+
+isAnimationRenderer :: ComponentFilter
+isAnimationRenderer = Predicate \c -> isJust $ getAnimationRenderer c

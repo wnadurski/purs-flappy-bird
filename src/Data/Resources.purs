@@ -21,6 +21,6 @@ loadResources =
     $ { backgroundBack: loadImage "resources/background/parallax-forest-back-trees.png"
       , backgroundMiddle: loadImage "resources/background/parallax-forest-middle-trees.png"
       , backgroundFront: loadImage "resources/background/parallax-forest-front-trees.png"
-      , player: loadImage "resources/chicken.png"
+      , player: loadImage "resources/chicken-anim.png"
       , octopus: loadImage "resources/octopus.png"
       }

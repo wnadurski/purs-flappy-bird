@@ -14,6 +14,7 @@ You can edit this file as you like.
   , "lcg"
   , "profunctor-lenses"
   , "psci-support"
+  , "record"
   , "record-extra"
   , "stringutils"
   , "test-unit"
