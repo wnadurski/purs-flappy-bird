@@ -2,6 +2,7 @@ module Game where
 
 import Prelude
 
+import Color (white)
 import Data.Collision (areColliding)
 import Data.Component (Component(..), _kinematics, _v, defaultKinematics, isKinematics, isPlayer, mkCollider, mkKinematics, mkTransform)
 import Data.Entity (Entity(..), getEntityId, hasComponent, mapComponents)
@@ -21,12 +22,15 @@ import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
 import Effect.Console (logShow)
 import Enemy (enemiesSystem, initialEnemies)
-import Graphics.Canvas (CanvasImageSource, Context2D)
+import Graphics.Canvas (CanvasImageSource, Context2D, font)
+import Graphics.Drawing (Drawing, Font, fillColor, text)
+import Graphics.Drawing.Font (FontOptions, light, monospace)
 import Image (loadImage)
 import Random.LCG (mkSeed, unSeed)
 import Record.Extra (sequenceRecord)
-import Render (Render(..), render)
+import Render (Render(..), render, uiFont)
 import Resources (Resources)
+import ScoreIndicator (scoreIndicatorSystem, scoreText)
 import System.Background (backgroundSystem, backgroundTransform)
 import System.Collision (collisionSystem)
 import System.Physics (physicsSystem)
@@ -78,6 +82,7 @@ initialState randomSeed resources w h =
             <> [ playerEntity resources cameraVelocity
               ]
             <> enemies
+            <> [ Entity [ Id "scoreText", mkTransform (Just {x: 30.0, y: 30.0}) Nothing, DrawingRenderer (scoreText ""), mkKinematics (Just cameraVelocity)] ]
       , collisions: []
       }
   }
@@ -103,6 +108,7 @@ update delta state = do
       <<< (if state.scene.status == Playing then physicsSystem delta else identity)
       <<< (if state.scene.status == Playing then backgroundSystem delta else identity)
       <<< (if state.scene.status == Playing then enemiesSystem delta else identity)
+      <<< scoreIndicatorSystem delta
 
   newScene = pipeline state.scene
 
