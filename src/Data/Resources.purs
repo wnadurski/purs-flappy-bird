@@ -22,5 +22,5 @@ loadResources =
       , backgroundMiddle: loadImage "resources/background/parallax-forest-middle-trees.png"
       , backgroundFront: loadImage "resources/background/parallax-forest-front-trees.png"
       , player: loadImage "resources/chicken-anim.png"
-      , octopus: loadImage "resources/octopus.png"
+      , octopus: loadImage "resources/octopus-anim.png"
       }

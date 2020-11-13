@@ -5,7 +5,7 @@ import Prelude
 import Control.Bind (bindFlipped)
 import Control.Semigroupoid (composeFlipped)
 import Data.Array (foldl, range, zip)
-import Data.Component (Component(..), getId, getTransformData, isCamera, isId, isIdEqual, isTransform, mkCollider, mkTransform)
+import Data.Component (Component(..), getId, getTransformData, isCamera, isId, isIdEqual, isTransform, mkAnimationRenderer, mkCollider, mkTransform)
 import Data.Entity (Entity(..), EntityFilter, eqId, getComponent, getEntityId, hasComponent, mapComponentsWith)
 import Data.Int (toNumber)
 import Data.Int.Bits (xor)
@@ -62,7 +62,7 @@ mkEnemy resources idCount xPos yPos side =
   Entity
     [ Id $ "octopus-" <> (show idCount)
     , mkEnemyTransform xPos yPos side
-    , CanvasSpriteRenderer resources.octopus
+    , mkAnimationRenderer "enemy-anim"
     , mkCollider colliderSize { x: 28.0, y: 18.0 }
     ]
 

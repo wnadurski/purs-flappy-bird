@@ -1,6 +1,7 @@
 module Game where
 
 import Prelude
+
 import Color (white)
 import Data.Animation (Animation(..), RepeatMode(..), makeNFrames, mkAnimation)
 import Data.Collision (areColliding)
@@ -86,7 +87,7 @@ initialState randomSeed resources w h =
             <> [ Entity [ Id "scoreText", mkTransform (Just { x: 30.0, y: 30.0 }) Nothing, DrawingRenderer (scoreText ""), mkKinematics (Just cameraVelocity) ] ]
       , collisions: []
       }
-  , animations: [ mkAnimation "player-anim" 8 (makeNFrames 4 resources.player) Loop ]
+  , animations: [ mkAnimation "player-anim" 8 (makeNFrames 4 resources.player) Loop, mkAnimation "enemy-anim" 5 (makeNFrames 6 resources.octopus) Loop ]
   }
   where
   cameraVelocity = { x: 200.0, y: 0.0 }
