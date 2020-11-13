@@ -2,6 +2,7 @@ module Game where
 
 import Prelude
 
+import Audio.Audio (Audio, createAudio, playAudio)
 import Color (white)
 import Data.Animation (Animation(..), RepeatMode(..), makeNFrames, mkAnimation)
 import Data.Collision (areColliding)
@@ -21,6 +22,7 @@ import Debug.Trace (spy)
 import Effect (Effect)
 import Effect.Aff (Aff)
 import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
 import Effect.Console (logShow)
 import Enemy (enemiesSystem, initialEnemies)
 import Graphics.Canvas (CanvasImageSource, Context2D, font)
@@ -136,6 +138,9 @@ handleSpace initialScene scene = case scene.status of
   Loosing -> initialScene { status = Playing }
   _ -> scene
 
+bgMusic :: Audio
+bgMusic = createAudio { url: "resources/octopus-bg-music.wav", loop: true }
+
 eventHandlers :: Scene -> Array ({ type :: EventType, target :: Effect EventTarget, handler :: Event -> GameState -> Effect GameState })
 eventHandlers initialScene =
   [ { type: EventType "keydown"
@@ -143,11 +148,15 @@ eventHandlers initialScene =
         \e state -> do
           let
             keyEvent = fromEvent e
-          pure
-            $ case keyEvent of
-                Just e
-                  | key e == " " -> over _scene (handleSpace initialScene) state
-                _ -> state
+          case keyEvent of
+            Just e
+              | key e == " " -> do
+                if state.scene.status == Starting then
+                  playAudio bgMusic
+                else
+                  pure unit
+                pure $ over _scene (handleSpace initialScene) state
+            _ -> pure state
     , target: toEventTarget <$> (document =<< window)
     }
   ]
